@@ -38,6 +38,9 @@ public class Scanner {
 		keywords.put("else", KW_ELSE);
 		keywords.put("return", KW_RETURN);
 		keywords.put("print", KW_PRINT);
+		keywords.put("size",KW_SIZE);
+		keywords.put("value", KW_VALUE);
+		keywords.put("key",KW_KEY);
 	}
 	
 	private Kind getKeywordType(String identifier) {
