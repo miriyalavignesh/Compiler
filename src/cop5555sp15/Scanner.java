@@ -258,11 +258,11 @@ public class Scanner {
 								if(ch != '\n')
 									index--;
 								linenumber++;
-								System.out.println("no."+linenumber);
+								//System.out.println("no."+linenumber);
 							}
 							else if(ch == '\n') {
 								linenumber++;
-								System.out.println("no."+linenumber);
+								//System.out.println("no."+linenumber);
 								
 							}
 							begOffset = index;

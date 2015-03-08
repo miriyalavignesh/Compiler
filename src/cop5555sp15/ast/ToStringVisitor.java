@@ -366,4 +366,10 @@ public class ToStringVisitor implements ASTVisitor {
 		return null;
 	}
 
+	@Override
+	public Object visitUndeclaredType(UndeclaredType undeclaredType, Object arg) {
+		// TODO Auto-generated method stub
+		return null;
+	}
+
 }
