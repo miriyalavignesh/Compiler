@@ -358,7 +358,6 @@ public class Scanner {
 				t = next();
 			//	System.out.println("token::"+t);
 			} catch (NumberFormatException | IOException e) {
-				// TODO Auto-generated catch block
 				System.out.println("Error in scanning");
 			}
 			stream.tokens.add(t);

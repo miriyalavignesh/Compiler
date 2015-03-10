@@ -40,10 +40,12 @@ public class Parser {
 		public String getMessage() {
 			StringBuilder sb = new StringBuilder();
 			sb.append(" error at token ").append(t.toString()).append(" ")
-					.append(msg);
-			sb.append(". Expected: ");
-			for (Kind kind : expected) {
-				sb.append(kind).append(" ");
+			.append(msg);
+			if(expected != null) {
+				sb.append(". Expected: ");
+				for (Kind kind : expected) {
+					sb.append(kind).append(" ");
+				}
 			}
 			return sb.toString();
 		}
@@ -54,7 +56,7 @@ public class Parser {
 	ArrayList<Kind> simpleType = new ArrayList<Kind>();
 	ArrayList<Kind> factor_prefix = new ArrayList<Kind>();
 	ArrayList<Kind> singleTokenFactorList = new ArrayList<Kind>();
-	
+
 	Parser(TokenStream tokens) {
 		this.tokens = tokens;
 		t = tokens.nextToken();
@@ -65,9 +67,9 @@ public class Parser {
 		simpleType.addAll(Arrays.asList(KW_INT ,KW_BOOLEAN,KW_STRING));
 		factor_prefix.addAll(Arrays.asList(IDENT,INT_LIT,BL_TRUE,BL_FALSE,STRING_LIT,LPAREN,NOT,MINUS,KW_SIZE,KW_VALUE,KW_KEY,AT,LCURLY));
 		singleTokenFactorList.addAll(Arrays.asList(INT_LIT,BL_TRUE,BL_FALSE,STRING_LIT));
-		
+
 	}
-	
+
 	private String match(Kind kind) throws SyntaxException {
 		if (isKind(kind)) {
 			String text = t.getText();
@@ -116,11 +118,11 @@ public class Parser {
 
 
 	List<SyntaxException> exceptionList = new ArrayList<SyntaxException>();
-	
+
 	public Program parse() {
 		Program p = null;
 		try {
-			p = ParseProgram();
+			p = parseProgram();
 			if (p != null)
 				match(EOF);
 		} catch (SyntaxException e) {
@@ -130,27 +132,27 @@ public class Parser {
 		else return null;
 	}
 
-	private Program ParseProgram() throws SyntaxException {
+	private Program parseProgram() throws SyntaxException {
 		Token firstToken = t;
-		List<QualifiedName> importList = ImportList();
+		List<QualifiedName> importList = importList();
 		match(KW_CLASS);
 		String classname = match(IDENT);
 		Block b = parseBlock();
 		return new Program(firstToken, importList, classname, b);
 	}
 
-	
 
-	private List<QualifiedName> ImportList() throws SyntaxException {
+
+	private List<QualifiedName> importList() throws SyntaxException {
 		List<QualifiedName> impList = new ArrayList<>();
 		while(isKind(KW_IMPORT)){
 			Token firstToken = t;
 			match(KW_IMPORT);
 			StringBuffer name= new StringBuffer(match(IDENT));
 			while(isKind(DOT)){
-					match(DOT);
-					name.append("/");
-					name.append(match(IDENT));
+				match(DOT);
+				name.append("/");
+				name.append(match(IDENT));
 			}
 			impList.add(new QualifiedName(firstToken, name.toString()));
 			match(SEMICOLON);
@@ -173,7 +175,7 @@ public class Parser {
 					blockElemList.add(s);
 				match(SEMICOLON);
 			}
-					}
+		}
 		match(RCURLY);
 		return new Block(firstToken, blockElemList);
 	}
@@ -183,28 +185,25 @@ public class Parser {
 		match(KW_DEF);
 		Token identToken = t;
 		match(IDENT); 
-		if(isKind(COLON)){
-			return parseVarDec(firstToken, identToken);
-		}
-		else if(isKind(ASSIGN)){
+		if(isKind(ASSIGN)){
 			return closureDec(firstToken, identToken);
 		}
+		else if(isKind(COLON)){
+			return parseVarDec(firstToken, identToken);
+		} 
 		else {
 			return new VarDec(firstToken, identToken, new UndeclaredType(firstToken));
 		}
 	}
-	
+
 	private VarDec parseVarDec(Token firstToken, Token identToken) throws SyntaxException{
 		match(COLON);
 		Type type = parseType();
 		return new VarDec(firstToken, identToken, type);
 	}
-	
+
 	private Type parseType() throws SyntaxException{
-		if(simpleType.contains(t.kind)){
-			return simpleType();
-		}
-		else if(isKind(AT)){
+		if(isKind(AT)){
 			match(AT);
 			if(isKind(AT)){
 				return parseKeyvalueType();
@@ -213,13 +212,16 @@ public class Parser {
 				return listType();
 			}
 		}
+		else if(simpleType.contains(t.kind)){
+			return simpleType();
+		} 
 		else {
 			throw new SyntaxException(t, "expected one of type");
 		}
 	}
 
 	private SimpleType simpleType()  throws SyntaxException {
-		if(isKind(KW_INT) || isKind(KW_BOOLEAN) || isKind(KW_STRING)){
+		if(simpleType.contains(t.kind)){
 			Token type = t;
 			consume();
 			return new SimpleType(type, type);
@@ -228,7 +230,7 @@ public class Parser {
 			throw new SyntaxException(t, "expected one of simpletype");
 		}
 	}
-	
+
 	private KeyValueType parseKeyvalueType()  throws SyntaxException{
 		Token firstToken = t;
 		match(AT);
@@ -239,7 +241,7 @@ public class Parser {
 		match(RSQUARE);
 		return new KeyValueType(firstToken, keyType, valueType);
 	}
-	
+
 	private ListType listType()  throws SyntaxException{
 		Token firstToken = t;
 		match(LSQUARE);
@@ -247,13 +249,13 @@ public class Parser {
 		match(RSQUARE);
 		return new ListType(firstToken, type);
 	}
-	
+
 	private ClosureDec closureDec(Token firstToken,Token identToken) throws SyntaxException {
 		match(ASSIGN);
 		Closure c = closure();
 		return new ClosureDec(firstToken, identToken, c);
 	}
-	
+
 	private Closure closure() throws SyntaxException{
 		Token firstToken = t;
 		match(LCURLY);
@@ -269,7 +271,7 @@ public class Parser {
 		match(RCURLY);
 		return new Closure(firstToken, argList, statementList);
 	}
-	
+
 	private List<VarDec> formalArgList() throws SyntaxException{
 		List<VarDec> argList = new ArrayList<VarDec>();
 		if(isKind(IDENT)){
@@ -284,7 +286,7 @@ public class Parser {
 		}
 		return argList;
 	}
-	
+
 	private Statement statement() throws SyntaxException{
 		Token firstToken = t;
 		if(isKind(IDENT)){
@@ -306,7 +308,6 @@ public class Parser {
 				match(TIMES);
 				star = true;
 			}
-			
 			match(LPAREN);
 			Token rangeFirst = t;
 			Expression expression = parseExpression();
@@ -356,7 +357,7 @@ public class Parser {
 		}
 		return null;
 	}
-	
+
 	private LValue lvalue() throws SyntaxException {
 		Token firstToken = t;
 		match(IDENT);
@@ -370,7 +371,7 @@ public class Parser {
 			return new IdentLValue(firstToken, firstToken);
 		}
 	}
-	
+
 	private Expression parseExpression() throws SyntaxException {
 		Token firstToken = t;
 		Expression expression0 = term();
@@ -384,7 +385,7 @@ public class Parser {
 		}
 		return expression0;
 	}
-	
+
 	private Expression term() throws SyntaxException {
 		Token firstToken = t;
 		Expression expression0 = elem();
@@ -413,7 +414,7 @@ public class Parser {
 		}
 		return expression0;
 	}
-	
+
 	private Expression thing() throws SyntaxException {
 		Token firstToken = t;
 		Expression expression0 = factor();
@@ -427,7 +428,7 @@ public class Parser {
 		}
 		return expression0;
 	}
-	
+
 	private Expression factor() throws SyntaxException {
 		Token firstToken = t;
 		if(isKind(IDENT)){
@@ -512,7 +513,7 @@ public class Parser {
 			throw new SyntaxException(t, "expected one of factor");
 		}
 	}
-	
+
 	private ListExpression list(Token firstToken) throws SyntaxException{
 		match(LSQUARE);
 		List<Expression> expressionList = expressionlist();
@@ -531,14 +532,14 @@ public class Parser {
 		}
 		return expressions;
 	}
-	
+
 	private ClosureEvalExpression closureevalexpression(Token firstToken) throws SyntaxException {
 		match(LPAREN);
 		List<Expression> expressionList = expressionlist();
 		match(RPAREN);
 		return new ClosureEvalExpression(firstToken, firstToken, expressionList);
 	}
-	
+
 	private MapListExpression maplist(Token firstToken) throws SyntaxException {
 		match(AT);
 		match(LSQUARE);
@@ -546,7 +547,7 @@ public class Parser {
 		match(RSQUARE);
 		return new MapListExpression(firstToken, mapList);
 	}
-	
+
 	private List<KeyValueExpression> keyvaluelist() throws SyntaxException{
 		List<KeyValueExpression> mapList = new ArrayList<>();
 		if(factor_prefix.contains(t.kind)){
@@ -558,7 +559,7 @@ public class Parser {
 		}
 		return mapList;
 	}
-	
+
 	private KeyValueExpression keyvalueexpression() throws SyntaxException{
 		Token firstToken = t;
 		Expression key = parseExpression();
@@ -566,5 +567,10 @@ public class Parser {
 		Expression value = parseExpression();
 		return new KeyValueExpression(firstToken, key, value);
 	}
-	
+
+	public List<SyntaxException> getExceptionList() {
+		// TODO Auto-generated method stub
+		return exceptionList;
+	}
+
 }
