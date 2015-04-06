@@ -1,9 +1,5 @@
 package cop5555sp15;
 
-import static cop5555sp15.TokenStream.Kind.KW_KEY;
-import static cop5555sp15.TokenStream.Kind.KW_SIZE;
-import static cop5555sp15.TokenStream.Kind.KW_VALUE;
-
 import java.io.IOException;
 import java.io.Reader;
 import java.util.ArrayList;
@@ -81,7 +77,8 @@ public class TokenStream {
 	public static enum Kind {
 		IDENT,
 		/* reserved words */
-		KW_INT, KW_STRING, KW_BOOLEAN, KW_IMPORT, KW_CLASS, KW_DEF, KW_WHILE, KW_IF, KW_ELSE, KW_RETURN, KW_PRINT,KW_SIZE,KW_KEY,KW_VALUE,
+		KW_INT, KW_STRING, KW_BOOLEAN, KW_IMPORT, KW_CLASS, KW_DEF, 
+		KW_WHILE, KW_IF, KW_ELSE, KW_RETURN, KW_PRINT, KW_SIZE, KW_KEY, KW_VALUE,
 		/* boolean literals */
 		BL_TRUE, BL_FALSE,
 		/* null literal */

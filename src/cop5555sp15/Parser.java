@@ -573,4 +573,9 @@ public class Parser {
 		return exceptionList;
 	}
 
+	public String getErrors() {
+		// TODO Auto-generated method stub
+		return null;
+	}
+
 }
