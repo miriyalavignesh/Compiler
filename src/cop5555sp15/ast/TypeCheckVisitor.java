@@ -1,6 +1,14 @@
 package cop5555sp15.ast;
 
+import static cop5555sp15.TokenStream.Kind.*;
+import static cop5555sp15.TokenStream.Kind.MINUS;
+import static cop5555sp15.TokenStream.Kind.PLUS;
+import static cop5555sp15.TokenStream.Kind.TIMES;
+
+import java.util.Arrays;
+
 import cop5555sp15.TypeConstants;
+import cop5555sp15.TokenStream.Kind;
 import cop5555sp15.symbolTable.SymbolTable;
 
 public class TypeCheckVisitor implements ASTVisitor, TypeConstants {
@@ -35,7 +43,18 @@ public class TypeCheckVisitor implements ASTVisitor, TypeConstants {
 	public Object visitAssignmentStatement(
 			AssignmentStatement assignmentStatement, Object arg)
 			throws Exception {
-		throw new UnsupportedOperationException("not yet implemented");
+		assignmentStatement.expression.visit(this, arg);
+		String ident = assignmentStatement.lvalue.firstToken.toString();
+		if(symbolTable.lookup(ident)!= null) {
+			VarDec varDec = (VarDec)symbolTable.lookup(ident);
+			if(assignmentStatement.expression.expressionType.equals(varDec.type.toString())) {
+				assignmentStatement.lvalue.type = assignmentStatement.expression.expressionType;
+			}
+			else {
+				throw new TypeCheckException("Incompatible Assignment Statement Lvalue and expression are different types", assignmentStatement);
+			}
+		}
+		return null;
 	}
 
 	/**
@@ -44,7 +63,52 @@ public class TypeCheckVisitor implements ASTVisitor, TypeConstants {
 	@Override
 	public Object visitBinaryExpression(BinaryExpression binaryExpression,
 			Object arg) throws Exception {
-		throw new UnsupportedOperationException("not yet implemented");
+		binaryExpression.expression0.visit(this, arg);
+		binaryExpression.expression1.visit(this, arg);/*
+		int (+ | - | * | /) int 				-> int
+		 *      string + string         				-> string
+		 *      int (== | != | < | <= | >= | >) int     -> boolean
+		 *      string (== | !=) string       			-> boolean*/
+		final Kind[] ARIT_OPS = { PLUS, MINUS, TIMES, DIV , MOD};
+		final Kind[] CMP_OPS = {EQUAL,NOTEQUAL, LT, LE, GE ,GT};
+		final Kind[] BOOL_OPS = {BAR,AND,EQUAL,NOTEQUAL};
+		//whitelisting only valid operations
+		if(binaryExpression.expression0.expressionType.equals(binaryExpression.expression1.expressionType)) {
+			if(binaryExpression.expression1.expressionType.equals(intType)) {
+				if(Arrays.asList(ARIT_OPS).contains(binaryExpression.op.kind)) {
+					binaryExpression.expressionType = binaryExpression.expression1.expressionType;
+				}
+				else if(Arrays.asList(CMP_OPS).contains(binaryExpression.op.kind)){
+					binaryExpression.expressionType = booleanType;
+				}
+				else {
+					throw new TypeCheckException("Operator not supported for int", binaryExpression);
+				}
+			}
+			else if(binaryExpression.expression1.expressionType.equals(stringType)) {
+				if(binaryExpression.op.kind.equals(PLUS))
+					binaryExpression.expressionType = binaryExpression.expression1.expressionType;
+				else if(binaryExpression.op.kind.equals(EQUAL) || binaryExpression.op.kind.equals(NOTEQUAL)) {
+					binaryExpression.expressionType = booleanType;
+				}
+				else {
+					throw new TypeCheckException("Operator not supported for string", binaryExpression);
+				}
+			}
+			else {
+				if(Arrays.asList(BOOL_OPS).contains(binaryExpression.op.kind)){
+					binaryExpression.expressionType = booleanType;
+				}
+				else {
+					throw new TypeCheckException("Operator not supported for boolean exp", binaryExpression);
+				}
+			}
+		}
+		else {
+			throw new TypeCheckException("binaryExpression with different types",
+					binaryExpression);
+		}
+		return null;
 	}
 
 	/**
@@ -76,7 +140,8 @@ public class TypeCheckVisitor implements ASTVisitor, TypeConstants {
 	public Object visitBooleanLitExpression(
 			BooleanLitExpression booleanLitExpression, Object arg)
 			throws Exception {
-		throw new UnsupportedOperationException("not yet implemented");
+		booleanLitExpression.setType(booleanType);
+		return booleanType;
 	}
 
 	/**
@@ -141,7 +206,15 @@ public class TypeCheckVisitor implements ASTVisitor, TypeConstants {
 	@Override
 	public Object visitIdentExpression(IdentExpression identExpression,
 			Object arg) throws Exception {
-		throw new UnsupportedOperationException("not yet implemented");
+		//System.out.println(identExpression.identToken.getText()+"  ---");
+		if(symbolTable.lookup(identExpression.identToken.getText()) == null) {
+			throw new TypeCheckException("Identifier not declared in current scope", identExpression);
+		}
+		else {
+			VarDec varDec = (VarDec)symbolTable.lookup(identExpression.identToken.getText());
+			identExpression.expressionType = varDec.type.getJVMType();
+		}
+		return null;
 	}
 
 	@Override
@@ -286,7 +359,8 @@ public class TypeCheckVisitor implements ASTVisitor, TypeConstants {
 	public Object visitStringLitExpression(
 			StringLitExpression stringLitExpression, Object arg)
 			throws Exception {
-		throw new UnsupportedOperationException("not yet implemented");
+		stringLitExpression.setType(stringType);
+		return stringType;
 	}
 
 	/**
@@ -316,7 +390,14 @@ public class TypeCheckVisitor implements ASTVisitor, TypeConstants {
 	 */
 	@Override
 	public Object visitVarDec(VarDec varDec, Object arg) throws Exception {
-		throw new UnsupportedOperationException("not yet implemented");
+		if (!symbolTable.insert(varDec.identToken.getText(), varDec)) {
+			throw new TypeCheckException("name already in symbol table",
+					varDec);
+		}
+		System.out.println(varDec.toString());
+		System.out.println("fff");
+		System.out.println(symbolTable.lookup(varDec.identToken.getText()));
+		return null;
 	}
 
 	/**

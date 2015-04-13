@@ -1,7 +1,14 @@
 package cop5555sp15.ast;
 
 import org.objectweb.asm.*;
-import cop5555sp15.TokenStream.Kind;
+import static cop5555sp15.TokenStream.Kind.DIV;
+import static cop5555sp15.TokenStream.Kind.MINUS;
+import static cop5555sp15.TokenStream.Kind.PLUS;
+import static cop5555sp15.TokenStream.Kind.TIMES;
+import static cop5555sp15.TokenStream.Kind.AND;
+import static cop5555sp15.TokenStream.Kind.BAR;
+import static cop5555sp15.TokenStream.Kind.MOD;
+
 import cop5555sp15.TypeConstants;
 
 public class CodeGenVisitor implements ASTVisitor, Opcodes, TypeConstants {
@@ -33,15 +40,150 @@ public class CodeGenVisitor implements ASTVisitor, Opcodes, TypeConstants {
 	public Object visitAssignmentStatement(
 			AssignmentStatement assignmentStatement, Object arg)
 			throws Exception {
-		throw new UnsupportedOperationException(
-				"code generation not yet implemented");
+		Label l1 = new Label();
+		MethodVisitor mv = ((InheritedAttributes) arg).mv;
+		mv.visitLabel(l1);
+		mv.visitVarInsn(ALOAD, 0);
+		assignmentStatement.expression.visit(this, arg);
+		mv.visitFieldInsn(PUTFIELD, className, assignmentStatement.lvalue.firstToken.getText(), assignmentStatement.expression.expressionType);
+		return null;
 	}
 
+	public void compareBinaryExpression(BinaryExpression binaryExpression,
+			Object arg,MethodVisitor mv,int opCode) throws Exception{
+		binaryExpression.expression0.visit(this, arg);
+		Label l1 = new Label();
+		binaryExpression.expression1.visit(this,arg);
+		mv.visitJumpInsn(opCode, l1);
+		mv.visitInsn(ICONST_1);
+		Label l2 = new Label();
+		mv.visitJumpInsn(GOTO, l2);
+		mv.visitLabel(l1);
+		mv.visitInsn(ICONST_0);
+		mv.visitLabel(l2);
+		
+	}
+	
 	@Override
 	public Object visitBinaryExpression(BinaryExpression binaryExpression,
 			Object arg) throws Exception {
-		throw new UnsupportedOperationException(
-				"code generation not yet implemented");
+		MethodVisitor mv = ((InheritedAttributes) arg).mv;
+		if(binaryExpression.expressionType.equals(intType)) {
+			binaryExpression.expression0.visit(this, arg);
+			binaryExpression.expression1.visit(this, arg);
+			if(binaryExpression.op.kind.equals(PLUS)) {
+				mv.visitInsn(IADD);
+			}
+			else if(binaryExpression.op.kind.equals(MINUS)){
+				mv.visitInsn(ISUB);
+			}
+			else if(binaryExpression.op.kind.equals(TIMES)){
+				mv.visitInsn(IMUL);
+			}
+			else if(binaryExpression.op.kind.equals(DIV)){
+				mv.visitInsn(IDIV);
+			}
+			else if(binaryExpression.op.kind.equals(MOD)){
+				mv.visitInsn(IREM);
+			}
+		}
+		else if(binaryExpression.expressionType.equals(stringType)) {
+			mv.visitTypeInsn(NEW, "java/lang/StringBuilder");
+			mv.visitInsn(DUP);
+			binaryExpression.expression0.visit(this, arg);
+			mv.visitMethodInsn(INVOKESPECIAL, "java/lang/StringBuilder", "<init>", "(Ljava/lang/String;)V", false);
+			binaryExpression.expression1.visit(this, arg);
+			mv.visitMethodInsn(INVOKEVIRTUAL, "java/lang/StringBuilder", "append", "(Ljava/lang/String;)Ljava/lang/StringBuilder;", false);
+			mv.visitMethodInsn(INVOKEVIRTUAL, "java/lang/StringBuilder", "toString", "()Ljava/lang/String;", false);
+		}
+		else if(binaryExpression.expressionType.equals(booleanType)) {
+			// int (== | != | < | <= | >= | >) int     -> boolean
+			// *      string (== | !=) string          -> boolean
+		/*	BAR, // |
+			AND, // &
+			EQUAL, // ==
+			NOTEQUAL, // !=
+			LT, // <
+			GT, // >
+			LE, // <=
+			GE, // >=
+			PLUS, // +
+			MINUS, // -
+			TIMES, // *
+			DIV, // /
+			MOD, // %
+			NOT, // !
+			LSHIFT, // <<
+			RSHIFT, // >>
+			ARROW, // ->
+		*/
+			//Kind op = binaryExpression.op.kind;
+			switch (binaryExpression.op.kind) {
+				case AND: {
+					binaryExpression.expression0.visit(this, arg);
+					Label l1 = new Label();
+					mv.visitJumpInsn(IFEQ, l1);
+					binaryExpression.expression1.visit(this,arg);
+					mv.visitJumpInsn(IFEQ, l1);
+					mv.visitInsn(ICONST_1);
+					Label l2 = new Label();
+					mv.visitJumpInsn(GOTO, l2);
+					mv.visitLabel(l1);
+					mv.visitInsn(ICONST_0);
+					mv.visitLabel(l2);
+					break;
+				}
+				case BAR: {
+					binaryExpression.expression0.visit(this, arg);
+					Label l1 = new Label();
+					mv.visitJumpInsn(IFNE, l1);
+					binaryExpression.expression1.visit(this,arg);
+					mv.visitJumpInsn(IFNE, l1);
+					mv.visitInsn(ICONST_0);
+					Label l2 = new Label();
+					mv.visitJumpInsn(GOTO, l2);
+					mv.visitLabel(l1);
+					mv.visitInsn(ICONST_1);
+					mv.visitLabel(l2);
+					break;
+				}
+				case EQUAL: {
+					if(binaryExpression.expression0.expressionType.equals(stringType)) {
+						compareBinaryExpression(binaryExpression, arg, mv, IF_ACMPNE);
+					}
+					else {
+						compareBinaryExpression(binaryExpression, arg, mv, IF_ICMPNE);
+					}
+					break;
+				}
+				case NOTEQUAL: {
+					if(binaryExpression.expression0.expressionType.equals(stringType)) {
+						compareBinaryExpression(binaryExpression, arg, mv, IF_ACMPEQ);
+					}
+					else {
+						compareBinaryExpression(binaryExpression, arg, mv, IF_ICMPEQ);
+					}
+					break;
+				}
+				case LT: {
+					compareBinaryExpression(binaryExpression, arg, mv, IF_ICMPGE);
+					break;
+				}
+				case GT: {
+					compareBinaryExpression(binaryExpression, arg, mv, IF_ICMPLE);
+					break;
+				}
+				case LE: {
+					compareBinaryExpression(binaryExpression, arg, mv, IF_ICMPGT);
+					break;
+				}
+				case GE: {
+					compareBinaryExpression(binaryExpression, arg, mv, IF_ICMPLT);
+					break;
+				}
+			}
+		}
+		return null;
 	}
 
 	@Override
@@ -56,8 +198,14 @@ public class CodeGenVisitor implements ASTVisitor, Opcodes, TypeConstants {
 	public Object visitBooleanLitExpression(
 			BooleanLitExpression booleanLitExpression, Object arg)
 			throws Exception {
-		throw new UnsupportedOperationException(
-				"code generation not yet implemented");
+		MethodVisitor mv = ((InheritedAttributes) arg).mv; // this should be the
+		// first statement
+		// of all visit
+		// methods that
+		// generate
+		// instructions
+		mv.visitLdcInsn(booleanLitExpression.value);
+		return null;
 	}
 
 	@Override
@@ -106,8 +254,11 @@ public class CodeGenVisitor implements ASTVisitor, Opcodes, TypeConstants {
 	@Override
 	public Object visitIdentExpression(IdentExpression identExpression,
 			Object arg) throws Exception {
-		throw new UnsupportedOperationException(
-				"code generation not yet implemented");
+		MethodVisitor mv = ((InheritedAttributes) arg).mv;
+		mv.visitVarInsn(ALOAD, 0);
+		System.out.println(className+"--"+identExpression.identToken.getText()+identExpression.expressionType);
+		mv.visitFieldInsn(GETFIELD, className, identExpression.identToken.getText(), identExpression.expressionType);
+		return null;
 	}
 
 	@Override
@@ -319,8 +470,14 @@ public class CodeGenVisitor implements ASTVisitor, Opcodes, TypeConstants {
 	public Object visitStringLitExpression(
 			StringLitExpression stringLitExpression, Object arg)
 			throws Exception {
-		throw new UnsupportedOperationException(
-				"code generation not yet implemented");
+		MethodVisitor mv = ((InheritedAttributes) arg).mv; // this should be the
+		// first statement
+		// of all visit
+		// methods that
+		// generate
+		// instructions
+		mv.visitLdcInsn(stringLitExpression.value);
+		return null;
 	}
 
 	@Override
@@ -339,8 +496,9 @@ public class CodeGenVisitor implements ASTVisitor, Opcodes, TypeConstants {
 
 	@Override
 	public Object visitVarDec(VarDec varDec, Object arg) throws Exception {
-		throw new UnsupportedOperationException(
-				"code generation not yet implemented");
+		 fv = cw.visitField(0, varDec.identToken.getText(), varDec.type.getJVMType(), null, null);
+		 fv.visitEnd();
+		 return null;
 	}
 
 	@Override

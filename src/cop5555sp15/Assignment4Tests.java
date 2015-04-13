@@ -96,7 +96,7 @@ public class Assignment4Tests {
  * The TypeCheckVisitor should set the type of the IntLitExpression to intType
  * intType is a constant defined in TypeConstants.java
  * 
- * This test should pass in the assignment as givin. 
+ * This test should pass in the assignment as given. 
  * 
  * @throws Exception
  * 
