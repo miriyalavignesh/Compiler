@@ -394,9 +394,9 @@ public class TypeCheckVisitor implements ASTVisitor, TypeConstants {
 			throw new TypeCheckException("name already in symbol table",
 					varDec);
 		}
-		System.out.println(varDec.toString());
+		/*System.out.println(varDec.toString());
 		System.out.println("fff");
-		System.out.println(symbolTable.lookup(varDec.identToken.getText()));
+		System.out.println(symbolTable.lookup(varDec.identToken.getText()));*/
 		return null;
 	}
 
