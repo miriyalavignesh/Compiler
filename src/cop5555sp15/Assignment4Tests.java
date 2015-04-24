@@ -708,5 +708,31 @@ public void expressonsAndVars() throws Exception{
 	executeByteCode(program.JVMName, bytecode);
 }
 
+
+@Test
+/** This test is expected to throw a TypeCheckException
+ * 
+ * @throws Exception
+ */
+public void varFail1() throws Exception {
+	String input = "class A {def x: int;\n  x = true;}";
+	Program program = (Program) parseCorrectInput(input);
+	typeCheckIncorrectAST(program);
+}
+
+@Test
+public void varFail2() throws Exception {
+	String input = "class A {def x: string; def y: boolean;\n  x = y;}";
+	Program program = (Program) parseCorrectInput(input);
+	typeCheckIncorrectAST(program);
+}
+
+@Test
+public void varFail3() throws Exception {
+	String input = "class A {\ndef x: int;\n def y: int;\n def z: int;\n  x = (y <= z);}";
+	Program program = (Program) parseCorrectInput(input);
+	typeCheckIncorrectAST(program);
+}
+
 }
 

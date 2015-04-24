@@ -1,9 +1,6 @@
 package cop5555sp15.ast;
 
 import static cop5555sp15.TokenStream.Kind.*;
-import static cop5555sp15.TokenStream.Kind.MINUS;
-import static cop5555sp15.TokenStream.Kind.PLUS;
-import static cop5555sp15.TokenStream.Kind.TIMES;
 
 import java.util.Arrays;
 
@@ -44,16 +41,14 @@ public class TypeCheckVisitor implements ASTVisitor, TypeConstants {
 			AssignmentStatement assignmentStatement, Object arg)
 			throws Exception {
 		assignmentStatement.expression.visit(this, arg);
-		String ident = assignmentStatement.lvalue.firstToken.toString();
-		if(symbolTable.lookup(ident)!= null) {
-			VarDec varDec = (VarDec)symbolTable.lookup(ident);
-			if(assignmentStatement.expression.expressionType.equals(varDec.type.toString())) {
-				assignmentStatement.lvalue.type = assignmentStatement.expression.expressionType;
-			}
-			else {
-				throw new TypeCheckException("Incompatible Assignment Statement Lvalue and expression are different types", assignmentStatement);
-			}
+		assignmentStatement.lvalue.visit(this, arg);
+	    if(assignmentStatement.expression.expressionType.equals(assignmentStatement.lvalue.type)) {
+			assignmentStatement.lvalue.type = assignmentStatement.expression.expressionType;
 		}
+		else {
+			throw new TypeCheckException("Incompatible Assignment Statement Lvalue and expression are different types", assignmentStatement);
+		}
+		
 		return null;
 	}
 
@@ -188,7 +183,17 @@ public class TypeCheckVisitor implements ASTVisitor, TypeConstants {
 	@Override
 	public Object visitExpressionLValue(ExpressionLValue expressionLValue,
 			Object arg) throws Exception {
-		throw new UnsupportedOperationException("not yet implemented");
+		String ident = expressionLValue.firstToken.getText();
+		if(symbolTable.lookup(ident)!= null) {
+			expressionLValue.expression.visit(this, arg);
+			VarDec varDec = (VarDec)symbolTable.lookup(ident);
+			if(varDec.type instanceof ListType){
+					ListType lType = (ListType) varDec.type;
+					expressionLValue.type = lType.type.getJVMType();
+			}
+			
+		}
+		return null;
 	}
 
 	@Override
@@ -212,7 +217,12 @@ public class TypeCheckVisitor implements ASTVisitor, TypeConstants {
 		}
 		else {
 			VarDec varDec = (VarDec)symbolTable.lookup(identExpression.identToken.getText());
-			identExpression.expressionType = varDec.type.getJVMType();
+			if(varDec.type instanceof ListType) {
+				identExpression.expressionType = "Ljava/util/ArrayList;";
+			}
+			else {
+				identExpression.expressionType = varDec.type.getJVMType();
+			}
 		}
 		return null;
 	}
@@ -220,13 +230,27 @@ public class TypeCheckVisitor implements ASTVisitor, TypeConstants {
 	@Override
 	public Object visitIdentLValue(IdentLValue identLValue, Object arg)
 			throws Exception {
-		throw new UnsupportedOperationException("not yet implemented");
+		String ident = identLValue.firstToken.getText();
+		if(symbolTable.lookup(ident)!= null) {
+			VarDec varDec = (VarDec)symbolTable.lookup(ident);
+			identLValue.type = (varDec.type instanceof ListType) ? "Ljava/util/ArrayList;" : varDec.type.getJVMType();
+		}
+		else {
+			throw new TypeCheckException("Ident Lvalue not defined", identLValue);
+		}
+		return null;
 	}
 
 	@Override
 	public Object visitIfElseStatement(IfElseStatement ifElseStatement,
 			Object arg) throws Exception {
-		throw new UnsupportedOperationException("not yet implemented");
+		ifElseStatement.expression.visit(this, arg);
+		if(!ifElseStatement.expression.expressionType.equals(booleanType)) {
+			throw new TypeCheckException("Expression inside If is not boolean", ifElseStatement);
+		}
+		ifElseStatement.ifBlock.visit(this, arg);
+		ifElseStatement.elseBlock.visit(this, arg);
+		return null;
 	}
 
 	/**
@@ -235,7 +259,12 @@ public class TypeCheckVisitor implements ASTVisitor, TypeConstants {
 	@Override
 	public Object visitIfStatement(IfStatement ifStatement, Object arg)
 			throws Exception {
-		throw new UnsupportedOperationException("not yet implemented");
+		ifStatement.expression.visit(this, arg);
+		if(!ifStatement.expression.expressionType.equals(booleanType)) {
+			throw new TypeCheckException("Expression inside If is not boolean", ifStatement);
+		}
+		ifStatement.block.visit(this, arg);
+		return null;
 	}
 
 	/**
@@ -274,7 +303,18 @@ public class TypeCheckVisitor implements ASTVisitor, TypeConstants {
 	@Override
 	public Object visitListExpression(ListExpression listExpression, Object arg)
 			throws Exception {
-		throw new UnsupportedOperationException("not yet implemented");
+		String listType = "";
+		for(Expression exp:listExpression.expressionList ) {
+			exp.visit(this, arg);
+			if(listType.isEmpty()) listType = exp.expressionType;
+			if(!exp.expressionType.equals(listType)) {
+				throw new TypeCheckException("expressions in list are of different types",listExpression);
+			}
+		}
+		//listExpression.expressionType = listType.isEmpty()? "Ljava/util/ArrayList;" : "Ljava/util/ArrayList<"+listType+">;";
+		listExpression.expressionType = "Ljava/util/ArrayList;";
+		//System.out.println(listExpression.expressionType);
+		return null;
 	}
 
 	/** gets the type from the enclosed expression */
@@ -282,7 +322,26 @@ public class TypeCheckVisitor implements ASTVisitor, TypeConstants {
 	public Object visitListOrMapElemExpression(
 			ListOrMapElemExpression listOrMapElemExpression, Object arg)
 			throws Exception {
-		throw new UnsupportedOperationException("not yet implemented");
+		Declaration dec = symbolTable.lookup(listOrMapElemExpression.identToken.getText());
+		if(dec == null)
+			 throw new TypeCheckException("Undefined list reference", listOrMapElemExpression);
+		VarDec varDec = (VarDec) dec;
+		if(varDec.type instanceof ListType) {
+			listOrMapElemExpression.expression.visit(this, arg);
+			if(!listOrMapElemExpression.expression.expressionType.equals(intType)) {
+				throw new TypeCheckException("List Index is not of type int", listOrMapElemExpression);
+			}
+			
+			
+					ListType lType = (ListType) varDec.type;
+			if(lType.type.getJVMType().contains("Ljava/util/List")){
+				listOrMapElemExpression.expressionType =  "Ljava/util/ArrayList;";
+			}else {
+				listOrMapElemExpression.expressionType = "Ljava/lang/Object;";
+			}
+			
+		}
+		return null;
 	}
 
 	@Override
@@ -352,7 +411,13 @@ public class TypeCheckVisitor implements ASTVisitor, TypeConstants {
 	@Override
 	public Object visitSizeExpression(SizeExpression sizeExpression, Object arg)
 			throws Exception {
-		throw new UnsupportedOperationException("not yet implemented");
+		sizeExpression.expression.visit(this, arg);
+		if(!sizeExpression.expression.expressionType.contains(emptyList) && !sizeExpression.expression.expressionType.contains(emptyMap)) {
+			//System.out.println(sizeExpression.expression.expressionType);
+			throw new TypeCheckException("Expected expression list or map", sizeExpression);
+		}
+		sizeExpression.expressionType = intType;
+		return null;
 	}
 
 	@Override
@@ -360,7 +425,7 @@ public class TypeCheckVisitor implements ASTVisitor, TypeConstants {
 			StringLitExpression stringLitExpression, Object arg)
 			throws Exception {
 		stringLitExpression.setType(stringType);
-		return stringType;
+		return stringType; 
 	}
 
 	/**
@@ -369,7 +434,23 @@ public class TypeCheckVisitor implements ASTVisitor, TypeConstants {
 	@Override
 	public Object visitUnaryExpression(UnaryExpression unaryExpression,
 			Object arg) throws Exception {
-		throw new UnsupportedOperationException("not yet implemented");
+		unaryExpression.expression.visit(this, arg);
+		//System.out.println(unaryExpression.op.getText());
+		if(unaryExpression.op.kind.equals(MINUS)) {
+			if(unaryExpression.expression.expressionType.equals(intType)) {
+			unaryExpression.expressionType = unaryExpression.expression.expressionType; 
+			}
+		}
+		else if(unaryExpression.op.kind.equals(NOT)) {
+			if(unaryExpression.expression.expressionType.equals(booleanType)) {
+				unaryExpression.expressionType = unaryExpression.expression.expressionType; 
+			}
+		}
+		else {
+			//System.out.println(unaryExpression.op);
+			throw new TypeCheckException("not an Unary Operator invalid expression", unaryExpression);
+		}
+		return null;
 	}
 
 	@Override
@@ -394,9 +475,6 @@ public class TypeCheckVisitor implements ASTVisitor, TypeConstants {
 			throw new TypeCheckException("name already in symbol table",
 					varDec);
 		}
-		/*System.out.println(varDec.toString());
-		System.out.println("fff");
-		System.out.println(symbolTable.lookup(varDec.identToken.getText()));*/
 		return null;
 	}
 
@@ -421,7 +499,12 @@ public class TypeCheckVisitor implements ASTVisitor, TypeConstants {
 	@Override
 	public Object visitWhileStatement(WhileStatement whileStatement, Object arg)
 			throws Exception {
-		throw new UnsupportedOperationException("not yet implemented");
+		whileStatement.expression.visit(this, arg);
+		if(!whileStatement.expression.expressionType.equals(booleanType)) {
+			throw new TypeCheckException("Expression inside while guard is not boolean", whileStatement);
+		}
+		whileStatement.block.visit(this, arg);
+		return null;
 	}
 
 }
