@@ -1,10 +1,22 @@
 package cop5555sp15;
-/** This class illustrates calling execute twice after modifying the int variable
-* in the codelet. The expected output is
-first time
-0
-2
-second time
+/** This class illustrates calling execute twice after modifying the boolean variable
+* in the codelet and thus changing the flow of the embedded code.The embedded code is program
+* to print the lyrics of song by Rammestein.
+*  The expected output is
+Du, du hast
+Du hast mich
+Du, du hast
+Du hast mich
+
+Du, du hast
+Du hast mich
+Du, du hast
+Du hast mich
+
+Du hast mich gefragt
+Du hast mich gefragt
+Du hast mich gefragt
+Du hast mich gefragt
 */
 public class Example2 {
 public static void main(String[] args) throws Exception{

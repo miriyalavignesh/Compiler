@@ -1,10 +1,29 @@
 package cop5555sp15;
 /** This class illustrates calling execute twice after modifying the int variable
-* in the codelet. The expected output is
-first time
-0
+* in the codelet.The embedded code is a program for printing fibonacci numbers for a given.
+* The expected output is
+* 
+Calling fib for 3 numbers
+--
+1
+--
+1
+--
 2
-second time
+done
+Calling fib for 5 numbers
+--
+1
+--
+1
+--
+2
+--
+3
+--
+5
+done
+
 */
 public class Example1 {
 public static void main(String[] args) throws Exception{
@@ -15,7 +34,7 @@ String source = "class C{ def printString: string; def k1: int; k1 = 1; def k2: 
 		+ " n = n -1;}; print \"done\";}";
 Codelet codelet = CodeletBuilder.newInstance(source);
 CodeletBuilder.setString(codelet,"printString", "--");
-CodeletBuilder.setInt(codelet, "n", 5);
+CodeletBuilder.setInt(codelet, "n", 3);
 int n = CodeletBuilder.getInt(codelet, "n");
 System.out.println("Calling fib for "+n+" numbers");
 codelet.execute();
